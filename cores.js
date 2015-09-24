@@ -24,31 +24,69 @@ exports.forLib = function (LIB) {
 
     exports.spin = function (context) {
 
-        var Context = function (config) {
+        var Context = function (config, parentContext) {
             var self = this;
 
-            self.adapters = {};
+            self.config = config;
 
-            Object.keys(config).forEach(function (coreName) {
+            self.aspects = (parentContext && Object.create(parentContext.aspects)) || new function () {};
+            self.aspects.context = self;
 
-                if (!LIB.Cores[coreName]) {
-                    console.error("LIB.Cores", LIB.Cores);
-                    throw new Error("Logic core '" + coreName + "' not loaded!");
+            self.adapters = (parentContext && Object.create(parentContext.adapters)) || new function () {};
+            self.adapters["context.server"] = self;
+
+            if (config.aspects) {
+                Object.keys(config.aspects).forEach(function (coreName) {
+                    if (!LIB.Cores[coreName]) {
+                        console.error("LIB.Cores", LIB.Cores);
+                        throw new Error("Logic core '" + coreName + "' not loaded!");
+                    }
+                    if (typeof LIB.Cores[coreName].forContexts !== "function") {
+                        console.error("LIB.Cores['" + coreName + "']", LIB.Cores[coreName]);
+                        throw new Error("Logic core '" + coreName + "' does not export 'forContexts()'!");
+                    }
+                    // TODO: When on server let 0-server.api subclass load core from disk instead of 'LIB'
+        			self.aspects[coreName] = new (LIB.Cores[coreName].forContexts(self).Context)(config.aspects[coreName].config || {});
+    
+        			Object.keys(config.aspects[coreName].adapters).forEach(function (adapterAlias) {
+        			    self.adapters[adapterAlias] = LIB.Cores[coreName].adapters[
+        			        config.aspects[coreName].adapters[adapterAlias]
+        			    ].spin(self.aspects[coreName])
+        			});
+                });
+            }
+
+            self.clone = function (cloneConfig) {
+                
+                // TODO: Setup inheritance references in all aspects and adapters
+                //       so they are aware of the runtime stack tree.
+
+                return new Context(cloneConfig, self);
+            }
+        }
+        Context.prototype.setAdapterAPI = function (alias, api) {
+            if (typeof this.adapters[alias] !== "undefined") {
+                if (
+                    !this.adapters[alias].promise ||
+                    this.adapters[alias].promise._settledValue
+                ) {
+                    throw new Error("Adapter API with alias '" + alias + "' already set for instance!");
                 }
-                if (typeof LIB.Cores[coreName].forContexts !== "function") {
-                    console.error("LIB.Cores['" + coreName + "']", LIB.Cores[coreName]);
-                    throw new Error("Logic core '" + coreName + "' does not export 'forContexts()'!");
-                }
-                // TODO: When on server let 0-server.api subclass load core from disk instead of 'LIB'
-    			self[coreName] = new (LIB.Cores[coreName].forContexts(self).Context)(config[coreName].config || {});
-
-    			self.adapters[coreName] = {}
-    			Object.keys(config[coreName].adapters).forEach(function (adapterAlias) {
-    			    self.adapters[coreName][adapterAlias] = LIB.Cores[coreName].adapters[
-    			        config[coreName].adapters[adapterAlias]
-    			    ].spin(self[coreName])
-    			});
-            });
+            } else {
+                this.adapters[alias] = LIB.Promise.defer();
+            }
+//console.log("fulfill adapter", alias);            
+            this.adapters[alias].resolve(api);
+            this.adapters[alias] = api;
+        }
+        Context.prototype.getAdapterAPI = function (alias) {
+            if (!this.adapters[alias]) {
+                this.adapters[alias] = LIB.Promise.defer();
+            }
+            if (this.adapters[alias].promise) {
+                return this.adapters[alias].promise;
+            }
+            return LIB.Promise.resolve(this.adapters[alias]);
         }
 
         return {
@@ -58,3 +96,15 @@ exports.forLib = function (LIB) {
 
     return exports;
 }
+
+/*
+                var context = this;
+                context.aspects = {};
+                context.adapters = {};
+            }
+            var context = new Context();
+
+            var contextCore = CONTEXT_CORE.forContexts(context);
+        	context.aspects.context = new contextCore.Context(config);
+        	context.adapters["context.server"] = contextCore.adapters["logic.cores"].spin(context.aspects.context);
+*/

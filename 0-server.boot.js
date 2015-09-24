@@ -8,9 +8,7 @@ exports.boot = function (LIB, config) {
     var contextCore = CONTEXT_CORE.forContexts(contexts);
 	contexts.context = new contextCore.Context(config || {});
 	contexts.adapters = {
-		context: {
-			server: contextCore.adapters["logic.cores"].spin(contexts.context)
-		}
+		"context.server": contextCore.adapters["logic.cores"].spin(contexts.context)
 	};
 
     return contexts;
