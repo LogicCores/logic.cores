@@ -46,7 +46,6 @@ exports.forLib = function (LIB) {
                         )
                     }
                     aspectContext.getAdapterAPI = function (alias) {
-console.log("get adapter '" + alias + "' for '"  + aspectContext.config.adapter + "'");
                         return entityContext.getAdapterAPI(alias)
                     }
 

@@ -46,13 +46,22 @@ exports.forLib = function (LIB) {
                         throw new Error("Logic core '" + coreName + "' does not export 'forContexts()'!");
                     }
                     // TODO: When on server let 0-server.api subclass load core from disk instead of 'LIB'
-        			self.aspects[coreName] = new (LIB.Cores[coreName].forContexts(self).Context)(config.aspects[coreName].config || {});
-    
-        			Object.keys(config.aspects[coreName].adapters).forEach(function (adapterAlias) {
-        			    self.adapters[adapterAlias] = LIB.Cores[coreName].adapters[
-        			        config.aspects[coreName].adapters[adapterAlias]
-        			    ].spin(self.aspects[coreName])
-        			});
+                    function getConfig () {
+                        var coreConfig = config.aspects[coreName].config;
+                        if (typeof coreConfig === "function") {
+                            coreConfig = coreConfig();
+                        }
+                        return coreConfig || {};
+                    }
+        			self.aspects[coreName] = new (LIB.Cores[coreName].forContexts(self).Context)(getConfig());
+
+                    if (config.aspects[coreName].adapters) {
+            			Object.keys(config.aspects[coreName].adapters).forEach(function (adapterAlias) {
+            			    self.adapters[adapterAlias] = LIB.Cores[coreName].adapters[
+            			        config.aspects[coreName].adapters[adapterAlias]
+            			    ].spin(self.aspects[coreName])
+            			});
+                    }
                 });
             }
 
