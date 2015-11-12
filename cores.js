@@ -77,8 +77,9 @@ exports.forLib = function (LIB) {
             if (typeof this.adapters[alias] !== "undefined") {
                 if (
                     !this.adapters[alias].promise ||
-                    this.adapters[alias].promise._settledValue
+                    !this.adapters[alias].promise.isPending()
                 ) {
+                    console.error("this.adapters", this.adapters);
                     throw new Error("Adapter API with alias '" + alias + "' already set for instance!");
                 }
             } else {
@@ -97,6 +98,13 @@ exports.forLib = function (LIB) {
             }
             return LIB.Promise.resolve(this.adapters[alias]);
         }
+        Context.prototype.setAspectConfig = function (coreName, config) {
+            // If aspect already exists we do not touch it.
+            if (this.aspects[coreName]) {
+                return;
+            }
+			this.aspects[coreName] = new (LIB.Cores[coreName].forContexts(this).Context)(config);
+        }
 
         return {
             Context: Context
@@ -105,15 +113,3 @@ exports.forLib = function (LIB) {
 
     return exports;
 }
-
-/*
-                var context = this;
-                context.aspects = {};
-                context.adapters = {};
-            }
-            var context = new Context();
-
-            var contextCore = CONTEXT_CORE.forContexts(context);
-        	context.aspects.context = new contextCore.Context(config);
-        	context.adapters["context.server"] = contextCore.adapters["logic.cores"].spin(context.aspects.context);
-*/

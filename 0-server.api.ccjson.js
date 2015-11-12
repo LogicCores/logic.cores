@@ -40,6 +40,7 @@ exports.forLib = function (LIB) {
                     var aspectContext = entityContext.clone(config);
                     
                     aspectContext.setAdapterAPI = function (api) {
+                        if (!aspectContext.config.adapter) return;
                         return entityContext.setAdapterAPI(
                             aspectContext.config.adapter,
                             api
@@ -47,6 +48,13 @@ exports.forLib = function (LIB) {
                     }
                     aspectContext.getAdapterAPI = function (alias) {
                         return entityContext.getAdapterAPI(alias)
+                    }
+                    aspectContext.setAspectConfig = function (aspectConfig) {
+                        if (!config.aspect) return;
+                        return entityContext.setAspectConfig(
+                            config.aspect,
+                            aspectConfig
+                        )
                     }
 
                     return LIB.Promise.resolve({
